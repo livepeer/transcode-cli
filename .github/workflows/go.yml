@@ -22,7 +22,7 @@ jobs:
       run: |
         go get -v -t -d ./...
     - name: Check that can be compiled
-      run: go build -v cmd/streamtester/streamtester.go
+      run: go build -v cmd/cli-transcoder/cli-transcoder.go
 
   create_release:
     name: Create Release
@@ -46,12 +46,12 @@ jobs:
 
   build:
     name: Build
-    # runs-on: ubuntu-latest
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # os: [macos-latest, ubuntu-latest]
-        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ubuntu-latest
+    # runs-on: ${{ matrix.os }}
+    # strategy:
+    #   matrix:
+    #     # os: [macos-latest, ubuntu-latest]
+    #     os: [macos-latest, windows-latest, ubuntu-latest]
     needs: create_release
     steps:
 
@@ -70,34 +70,30 @@ jobs:
 
     - name: Build
       run: |
-        make
-
-    - name: Compress Posix
-      if: matrix.os != 'windows-latest'
-      run: |
-        gzip -9 -S .${{runner.os}}.gz cli-transcoder
-
-    - name: Compress Windows
-      if: matrix.os == 'windows-latest'
-      run: |
-        7z a cli-transcoder.${{runner.os}}.zip cli-transcoder.exe
+        make cli-transcoder
+        gzip -9 -S .linux.amd64.gz cli-transcoder
+        GOOS=linux GOARCH=arm make cli-transcoder
+        gzip -9 -S .linux.arm32.gz cli-transcoder
+        GOOS=linux GOARCH=arm64 make cli-transcoder
+        gzip -9 -S .linux.arm64.gz cli-transcoder
+        GOOS=darwin GOARCH=arm64 make cli-transcoder
+        gzip -9 -S .macos.arm64.gz cli-transcoder
+        GOOS=darwin GOARCH=amd64 make cli-transcoder
+        gzip -9 -S .macos.amd64.gz cli-transcoder
+        GOOS=windows GOARCH=amd64 make cli-transcoder
+        gzip -9 -S .windows.amd64.gz cli-transcoder.exe
 
     - name: Release Posix
       uses: softprops/action-gh-release@v1
-      # if: startsWith(github.ref, 'refs/tags/')
-      if: matrix.os != 'windows-latest'
       with:
         files: |
-            cli-transcoder.${{runner.os}}.gz
+            cli-transcoder.linux.amd64.gz
+            cli-transcoder.linux.arm32.gz
+            cli-transcoder.linux.arm64.gz
+            cli-transcoder.macos.amd64.gz
+            cli-transcoder.macos.arm64.gz
+            cli-transcoder.exe.windows.amd64.gz
           # body_path: ${{ github.workflow }}-CHANGELOG.txt
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Release Windows
-      uses: softprops/action-gh-release@v1
-      if: matrix.os == 'windows-latest'
-      with:
-        files: cli-transcoder.${{runner.os}}.zip
-          # body_path: ${{ github.workflow }}-CHANGELOG.txt
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
