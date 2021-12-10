@@ -71,16 +71,22 @@ jobs:
     - name: Build
       run: |
         make cli-transcoder
+        tar -czvf cli-transcoder.linux.amd64.tar.gz cli-transcoder
         gzip -9 -S .linux.amd64.gz cli-transcoder
         GOOS=linux GOARCH=arm make cli-transcoder
+        tar -czvf cli-transcoder.linux.arm32.tar.gz cli-transcoder
         gzip -9 -S .linux.arm32.gz cli-transcoder
         GOOS=linux GOARCH=arm64 make cli-transcoder
+        tar -czvf cli-transcoder.linux.arm64.tar.gz cli-transcoder
         gzip -9 -S .linux.arm64.gz cli-transcoder
         GOOS=darwin GOARCH=arm64 make cli-transcoder
+        tar -czvf cli-transcoder.macos.arm64.tar.gz cli-transcoder
         gzip -9 -S .macos.arm64.gz cli-transcoder
         GOOS=darwin GOARCH=amd64 make cli-transcoder
+        tar -czvf cli-transcoder.macos.amd64.tar.gz cli-transcoder
         gzip -9 -S .macos.amd64.gz cli-transcoder
         GOOS=windows GOARCH=amd64 make cli-transcoder
+        tar -czvf cli-transcoder.windows.amd64.tar.gz cli-transcoder.exe
         gzip -9 -S .windows.amd64.gz cli-transcoder.exe
 
     - name: Release Posix
@@ -93,6 +99,12 @@ jobs:
             cli-transcoder.macos.amd64.gz
             cli-transcoder.macos.arm64.gz
             cli-transcoder.exe.windows.amd64.gz
+            cli-transcoder.linux.amd64.tar.gz
+            cli-transcoder.linux.arm32.tar.gz
+            cli-transcoder.linux.arm64.tar.gz
+            cli-transcoder.macos.amd64.tar.gz
+            cli-transcoder.macos.arm64.tar.gz
+            cli-transcoder.windows.amd64.tar.gz
           # body_path: ${{ github.workflow }}-CHANGELOG.txt
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
