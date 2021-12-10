@@ -4,7 +4,7 @@
 
 ## usage
 
-To use this tool you need to geerate Livepeer API key.
+To use this tool you need to generate an Livepeer API key.
 
 Tool accepts .mp4 and .ts file. Out also can be .mp4 or .ts.
 
