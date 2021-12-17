@@ -16,3 +16,4 @@
 /cli-transcoder
 /*.ts
 /*.mp4
+/out/

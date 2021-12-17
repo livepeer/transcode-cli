@@ -17,10 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/livepeer/joy4/av"
 	"github.com/livepeer/joy4/av/avutil"
 	"github.com/livepeer/joy4/format"
 	"github.com/livepeer/joy4/format/ts"
+	"github.com/livepeer/m3u8"
 	"github.com/livepeer/stream-tester/apis/livepeer"
 	"github.com/livepeer/stream-tester/apis/mist"
 	"github.com/livepeer/stream-tester/model"
@@ -41,7 +43,8 @@ func init() {
 var errResolution = errors.New("InvalidResolution")
 var errH264Profile = errors.New("InvalidH264Profile")
 
-var allowedExt = []string{".ts", ".mp4"}
+var allowedInputExt = []string{".ts", ".mp4"}
+var allowedOutputExt = []string{".ts", ".mp4", ".m3u8"}
 var allowedH264Profiles = map[string]string{"baseline": "H264Baseline", "main": "H264Main", "high": "H264High"}
 
 /*
@@ -129,6 +132,33 @@ func makeDstName(dst string, i, profiles int) string {
 	return fmt.Sprintf("%s_%d%s", base, i, ext)
 }
 
+func makeMediaPlaylistDstName(dst, mediaName string) string {
+	ext := filepath.Ext(dst)
+	base := strings.TrimSuffix(dst, ext)
+	// dir := filepath.Dir(base)
+	// fnBase := filepath.base(base)
+	return fmt.Sprintf("%s_%s%s", base, mediaName, ext)
+}
+
+func makeMediaPlaylistName(dst, mediaName string) string {
+	ext := filepath.Ext(dst)
+	base := strings.TrimSuffix(dst, ext)
+	// dir := filepath.Dir(base)
+	base = filepath.Base(base)
+	return fmt.Sprintf("%s_%s", base, mediaName)
+}
+
+func addPathFrom(dst, fn string) string {
+	dir := filepath.Dir(dst)
+	return filepath.Join(dir, fn)
+}
+
+func getBase(dst string) string {
+	ext := filepath.Ext(dst)
+	base := strings.TrimSuffix(dst, ext)
+	return filepath.Base(base)
+}
+
 func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []livepeer.Profile) error {
 	lapi := livepeer.NewLivepeer2(apiKey, apiHost, nil, 2*time.Minute)
 	lapi.Init()
@@ -155,10 +185,16 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	if err = segmenter.StartSegmenting(gctx, src, true, 0, 0, segLen, false, segmentsIn); err != nil {
 		return err
 	}
+	var writtenFiles []string
+	outExt := filepath.Ext(dst)
+	var playList *m3u8.MasterPlaylist
+	var mediaLists []*m3u8.MediaPlaylist
+	if outExt == ".m3u8" {
+		playList = m3u8.NewMasterPlaylist()
+	}
 	var outFiles []av.MuxCloser
 	var dstNames []string
 	if len(presets) == 0 {
-		presets = append(presets, "dummy")
 		for i, prof := range profiles {
 			name := prof.Name
 			if name == "" {
@@ -167,15 +203,32 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 			presets = append(presets, name)
 		}
 	}
-	for i := range presets {
-		// dstName := fmt.Sprintf(dstNameTemplate, i)
-		dstName := makeDstName(dst, i, len(presets))
-		dstNames = append(dstNames, dstName)
-		dstFile, err := avutil.Create(dstName)
-		if err != nil {
-			return fmt.Errorf("can't create out file %w", err)
+	for i, pn := range presets {
+		if playList != nil {
+			pn = makeMediaPlaylistName(dst, pn)
+			var resolution string
+			if len(profiles) > 0 {
+				resolution = fmt.Sprintf("%dx%d", profiles[i].Width, profiles[i].Height)
+			}
+			playList.Append(pn+".m3u8", nil, m3u8.VariantParams{Name: pn, Resolution: resolution})
+			mpl, err := m3u8.NewMediaPlaylist(0, 1024*1024)
+			mpl.MediaType = m3u8.VOD
+			mpl.Live = false
+			mpl.TargetDuration = segLen.Seconds()
+			if err != nil {
+				panic(err)
+			}
+			mediaLists = append(mediaLists, mpl)
+		} else {
+			// dstName := fmt.Sprintf(dstNameTemplate, i)
+			dstName := makeDstName(dst, i, len(presets))
+			dstNames = append(dstNames, dstName)
+			dstFile, err := avutil.Create(dstName)
+			if err != nil {
+				return fmt.Errorf("can't create out file %w", err)
+			}
+			outFiles = append(outFiles, dstFile)
 		}
-		outFiles = append(outFiles, dstFile)
 	}
 
 	var transcoded [][]byte
@@ -197,26 +250,55 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 		fmt.Printf("Transcoded %d took %s\n", len(transcoded), time.Since(started))
 
 		for i, segData := range transcoded {
-			demuxer := ts.NewDemuxer(bytes.NewReader(segData))
-			if seg.SeqNo == 0 {
-				streams, err := demuxer.Streams()
-				if err != nil {
+			if playList != nil {
+				segFileName := fmt.Sprintf("%s_%s_%d.ts", getBase(dst), presets[i], seg.SeqNo)
+				mpl := mediaLists[i]
+				mseg := new(m3u8.MediaSegment)
+				mseg.SeqId = uint64(seg.SeqNo)
+				mseg.Duration = seg.Duration.Seconds()
+				mseg.URI = segFileName
+				mpl.AppendSegment(mseg)
+				segFileFullName := addPathFrom(dst, segFileName)
+				if err = os.WriteFile(segFileFullName, segData, 0644); err != nil {
+					panic(err)
+				}
+				writtenFiles = append(writtenFiles, segFileFullName)
+			} else {
+				demuxer := ts.NewDemuxer(bytes.NewReader(segData))
+				if seg.SeqNo == 0 {
+					streams, err := demuxer.Streams()
+					if err != nil {
+						return err
+					}
+					if err = outFiles[i].WriteHeader(streams); err != nil {
+						fmt.Printf("Write header err=%v\n", err)
+						return err
+					}
+				}
+				if err = avutil.CopyPackets(outFiles[i], demuxer); err != io.EOF {
+					fmt.Printf("Copy packets err=%v\n", err)
 					return err
 				}
-				if err = outFiles[i].WriteHeader(streams); err != nil {
-					fmt.Printf("Write header err=%v\n", err)
-					return err
-				}
-			}
-			if err = avutil.CopyPackets(outFiles[i], demuxer); err != io.EOF {
-				fmt.Printf("Copy packets err=%v\n", err)
-				return err
 			}
 		}
 	}
-	for _, outFile := range outFiles {
-		if err = outFile.Close(); err != nil {
-			return err
+	if playList != nil {
+		if err := os.WriteFile(dst, playList.Encode().Bytes(), 0644); err != nil {
+			glog.Fatal(err)
+		}
+		writtenFiles = append(writtenFiles, dst)
+		for i, mpl := range mediaLists {
+			mplName := makeMediaPlaylistDstName(dst, presets[i])
+			if err := os.WriteFile(mplName, mpl.Encode().Bytes(), 0644); err != nil {
+				glog.Fatal(err)
+			}
+			writtenFiles = append(writtenFiles, mplName)
+		}
+	} else {
+		for _, outFile := range outFiles {
+			if err = outFile.Close(); err != nil {
+				return err
+			}
 		}
 	}
 	gcancel()
@@ -224,6 +306,9 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 		fmt.Printf("Error while segmenting err=%v\n", err)
 	}
 	fmt.Printf("Written files:\n")
+	for _, fn := range writtenFiles {
+		fmt.Printf("    %s\n", fn)
+	}
 	for i := range outFiles {
 		// dstName := fmt.Sprintf(dstNameTemplate, i)
 		fmt.Printf("    %s\n", dstNames[i])
@@ -259,13 +344,13 @@ func main() {
 			// fmt.Println("transcode: " + strings.Join(args, " "))
 			inp := args[0]
 			inpExt := filepath.Ext(inp)
-			if !stringsSliceContains(allowedExt, inpExt) {
+			if !stringsSliceContains(allowedInputExt, inpExt) {
 				fmt.Fprintf(os.Stderr, "Unsupported extension %q for file %q\n", inpExt, inp)
 				os.Exit(1)
 			}
 			output := args[1]
 			outputExt := filepath.Ext(output)
-			if !stringsSliceContains(allowedExt, outputExt) {
+			if !stringsSliceContains(allowedOutputExt, outputExt) {
 				fmt.Fprintf(os.Stderr, "Unsupported extension %q for file %q\n", outputExt, output)
 				os.Exit(1)
 			}
