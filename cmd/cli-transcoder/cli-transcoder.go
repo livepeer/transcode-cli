@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -128,7 +129,7 @@ func makeDstName(dst string, i, profiles int) string {
 	return fmt.Sprintf("%s_%d%s", base, i, ext)
 }
 
-func transcode(apiKey, apiHost, src, dst string, presets []string, lprofile *livepeer.Profile) error {
+func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []livepeer.Profile) error {
 	lapi := livepeer.NewLivepeer2(apiKey, apiHost, nil, 2*time.Minute)
 	lapi.Init()
 	fmt.Printf("Choosen API server: %s", lapi.GetServer())
@@ -136,8 +137,8 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofile *liv
 	// stream, err := lapi.CreateStreamEx(streamName, true, nil, standardProfiles...)
 	// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
 	var profiles []livepeer.Profile
-	if lprofile != nil {
-		profiles = append(profiles, *lprofile)
+	if len(lprofiles) > 0 {
+		profiles = append(profiles, lprofiles...)
 	}
 	stream, err := lapi.CreateStreamEx(streamName, false, presets, profiles...)
 	if err != nil {
@@ -158,6 +159,13 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofile *liv
 	var dstNames []string
 	if len(presets) == 0 {
 		presets = append(presets, "dummy")
+		for i, prof := range profiles {
+			name := prof.Name
+			if name == "" {
+				name = fmt.Sprintf("profile_%d", i)
+			}
+			presets = append(presets, name)
+		}
 	}
 	for i := range presets {
 		// dstName := fmt.Sprintf(dstNameTemplate, i)
@@ -183,6 +191,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofile *liv
 		started := time.Now()
 		transcoded, err = lapi.PushSegment(stream.ID, seg.SeqNo, seg.Duration, seg.Data)
 		if err != nil {
+			fmt.Printf("Segment push err=%v\n", err)
 			break
 		}
 		fmt.Printf("Transcoded %d took %s\n", len(transcoded), time.Since(started))
@@ -195,10 +204,12 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofile *liv
 					return err
 				}
 				if err = outFiles[i].WriteHeader(streams); err != nil {
+					fmt.Printf("Write header err=%v\n", err)
 					return err
 				}
 			}
 			if err = avutil.CopyPackets(outFiles[i], demuxer); err != io.EOF {
+				fmt.Printf("Copy packets err=%v\n", err)
 				return err
 			}
 		}
@@ -235,7 +246,7 @@ func main() {
 	// var echoTimes int
 	var apiKey, apiHost string
 	var presets string
-	var resolution, frameRate, profile string
+	var resolution, frameRate, profile, profiles string
 	var bitrateK uint64
 	var gop time.Duration
 
@@ -246,7 +257,6 @@ func main() {
 		Args:  cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			// fmt.Println("transcode: " + strings.Join(args, " "))
-			var err error
 			inp := args[0]
 			inpExt := filepath.Ext(inp)
 			if !stringsSliceContains(allowedExt, inpExt) {
@@ -276,6 +286,10 @@ func main() {
 			fmt.Printf("api key %q transcode from %q to %q\n", apiKey, inp, output)
 			// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
 			// ffmpeg.P720p30fps16x9
+			if (profiles != "" || resolution != "") && presets != "" {
+				fmt.Fprintf(os.Stderr, "Should not specify preset if profiles or resolution specified\n")
+				os.Exit(1)
+			}
 			var presetsAr []string
 			if len(presets) > 0 {
 				presetsAr = strings.Split(presets, ",")
@@ -290,19 +304,30 @@ func main() {
 				}
 			}
 
-			if len(presets) == 0 && len(resolution) == 0 {
-				fmt.Printf("Should specify preset or resolution\n")
+			if len(presets) == 0 && len(resolution) == 0 && len(profiles) == 0 {
+				fmt.Printf("Should specify preset or resolution or profiles file name\n")
 				os.Exit(1)
 			}
-			var transcodeProfile *livepeer.Profile
-			if len(resolution) > 0 {
-				if transcodeProfile, err = parmsToProfile(resolution, profile, frameRate, bitrateK, gop); err != nil {
+			var transcodeProfiles []livepeer.Profile
+			if profiles != "" {
+				if fc, err := os.ReadFile(profiles); err != nil {
+					fmt.Printf("Error reading file %s error: %v\n", profiles, err)
+					os.Exit(1)
+				} else {
+					if err := json.Unmarshal(fc, &transcodeProfiles); err != nil {
+						fmt.Printf("Error parsing file %s error: %v\n", profiles, err)
+						os.Exit(1)
+					}
+				}
+			} else if resolution != "" {
+				if transcodeProfile, err := parmsToProfile(resolution, profile, frameRate, bitrateK, gop); err != nil {
 					fmt.Printf("Error parsing arguments: %s\n", err)
 					os.Exit(1)
+				} else {
+					transcodeProfiles = append(transcodeProfiles, *transcodeProfile)
 				}
-
 			}
-			if err := transcode(apiKey, apiHost, inp, output, presetsAr, transcodeProfile); err != nil {
+			if err := transcode(apiKey, apiHost, inp, output, presetsAr, transcodeProfiles); err != nil {
 				fmt.Fprintf(os.Stderr, "Error while transcoding: %v\n", err)
 				os.Exit(2)
 			}
@@ -314,6 +339,7 @@ func main() {
 	cmdTranscode.Flags().StringVarP(&profile, "profile", "o", "", "Profile (baseline,main,high)")
 	cmdTranscode.Flags().Uint64VarP(&bitrateK, "bitrate", "b", 0, "Bitrate (in Kbit)")
 	cmdTranscode.Flags().DurationVarP(&gop, "gop", "g", 0, "Gop (time between keyframes)")
+	cmdTranscode.Flags().StringVarP(&profiles, "profiles", "", "", "Names of the JSON file with transcoding configuration")
 
 	var cmdListPresets = &cobra.Command{
 		Use:   "list-presets ",

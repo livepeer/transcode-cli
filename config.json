@@ -1,0 +1,42 @@
+[
+	{
+		"name":    "240p0",
+        "fps": 30000,
+		"fpsDen":  1001,
+		"bitrate": 250000,
+		"width":   426,
+		"height":  240,
+		"gop":     "2.0",
+        "profile": "H264Baseline"
+	},
+	{
+		"name":    "360p0",
+		"fps":     60000,
+        "fpsDen": 1001,
+		"bitrate": 800000,
+		"width":   640,
+		"height":  360,
+		"gop":     "2.0",
+        "profile": "H264Main"
+	},
+	{
+		"name":    "480p0",
+		"fps":     24000,
+        "fpsDen": 1001,
+		"bitrate": 1600000,
+		"width":   854,
+		"height":  480,
+		"gop":     "2.0",
+        "profile": "H264High"
+	},
+	{
+		"name":    "720p0",
+		"fps":     0,
+		"bitrate": 3000000,
+		"width":   1280,
+		"height":  720,
+		"gop":     "2.0",
+        "profile": "H264ConstrainedHigh"
+	}
+]
+
