@@ -6,7 +6,9 @@
 
 To use this tool you need to generate an Livepeer API key.
 
-Tool accepts .mp4 and .ts file. Out also can be .mp4 or .ts.
+Tool accepts .mp4 and .ts file. Output be .mp4, .ts or .m3u8 (HLS manifest).
+For HLS output tool will write master playlist and one media playlist for each transcoding profile.
+
 
 Example usage:
 
@@ -16,6 +18,10 @@ or
 
 `./cli-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_file_name.mp4 -r 256x144 -b 400 --framerate 47 --profile baseline --gop 20s`
 
+for HLS output:
+
+`./cli-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_dir/output_file_name.m3u8 --profiles config.json`  
+`output_dir` should exist.
 
 Switches:
 
