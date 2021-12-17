@@ -189,6 +189,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	outExt := filepath.Ext(dst)
 	var playList *m3u8.MasterPlaylist
 	var mediaLists []*m3u8.MediaPlaylist
+	var mediaSegments [][]*m3u8.MediaSegment
 	if outExt == ".m3u8" {
 		playList = m3u8.NewMasterPlaylist()
 	}
@@ -203,24 +204,10 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 			presets = append(presets, name)
 		}
 	}
-	for i, pn := range presets {
+	for i := range presets {
 		if playList != nil {
-			pn = makeMediaPlaylistName(dst, pn)
-			var resolution string
-			if len(profiles) > 0 {
-				resolution = fmt.Sprintf("%dx%d", profiles[i].Width, profiles[i].Height)
-			}
-			playList.Append(pn+".m3u8", nil, m3u8.VariantParams{Name: pn, Resolution: resolution})
-			mpl, err := m3u8.NewMediaPlaylist(0, 1024*1024)
-			mpl.MediaType = m3u8.VOD
-			mpl.Live = false
-			mpl.TargetDuration = segLen.Seconds()
-			if err != nil {
-				panic(err)
-			}
-			mediaLists = append(mediaLists, mpl)
+			mediaSegments = append(mediaSegments, nil)
 		} else {
-			// dstName := fmt.Sprintf(dstNameTemplate, i)
 			dstName := makeDstName(dst, i, len(presets))
 			dstNames = append(dstNames, dstName)
 			dstFile, err := avutil.Create(dstName)
@@ -252,12 +239,11 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 		for i, segData := range transcoded {
 			if playList != nil {
 				segFileName := fmt.Sprintf("%s_%s_%d.ts", getBase(dst), presets[i], seg.SeqNo)
-				mpl := mediaLists[i]
 				mseg := new(m3u8.MediaSegment)
 				mseg.SeqId = uint64(seg.SeqNo)
 				mseg.Duration = seg.Duration.Seconds()
 				mseg.URI = segFileName
-				mpl.AppendSegment(mseg)
+				mediaSegments[i] = append(mediaSegments[i], mseg)
 				segFileFullName := addPathFrom(dst, segFileName)
 				if err = os.WriteFile(segFileFullName, segData, 0644); err != nil {
 					panic(err)
@@ -283,6 +269,25 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 		}
 	}
 	if playList != nil {
+		for i, pn := range presets {
+			pn = makeMediaPlaylistName(dst, pn)
+			var resolution string
+			if len(profiles) > 0 {
+				resolution = fmt.Sprintf("%dx%d", profiles[i].Width, profiles[i].Height)
+			}
+			playList.Append(pn+".m3u8", nil, m3u8.VariantParams{Name: pn, Resolution: resolution})
+			mpl, err := m3u8.NewMediaPlaylist(0, uint(len(mediaSegments[i])))
+			if err != nil {
+				panic(err)
+			}
+			mpl.MediaType = m3u8.VOD
+			mpl.Live = false
+			mpl.TargetDuration = segLen.Seconds()
+			for _, seg := range mediaSegments[i] {
+				mpl.AppendSegment(seg)
+			}
+			mediaLists = append(mediaLists, mpl)
+		}
 		if err := os.WriteFile(dst, playList.Encode().Bytes(), 0644); err != nil {
 			glog.Fatal(err)
 		}
