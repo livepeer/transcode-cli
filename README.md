@@ -19,24 +19,24 @@ or
 
 Switches:
 
-`-r widtxheight` - specifies output resolution
-`-b 400` - output bitrate, in KB
-`--framerate 10` - output framerate
-`-profile baseline` - h264 profie, one of: baselline, main, high
-`--gop 10s` - GOP length
+`-r widtxheight` - specifies output resolution  
+`-b 400` - output bitrate, in KB  
+`--framerate 10` - output framerate  
+`-profile baseline` - h264 profie, one of: baselline, main, high  
+`--gop 10s` - GOP length  
 `--profiles` - file name with desired encoding profiles in JSON format. Example [config.json](config.json)
 
 ## profile structure:
 
-```json
+```jsonc
 	{
-		name
-		width
-		height
-		bitrate // in bits per second
-		fps
-		fpsDen // fps denominator, do not set if fractional fps is not needed
-		gop // strings, for example: 2s
-		profile // one of - H264Baseline - H264Main - H264High - H264ConstrainedHigh
+		"name",
+		"width", // number
+		"height", // number
+		"bitrate", // number, in bits per second
+		"fps", // number
+		"fpsDen" // number, fps denominator, do not set if fractional fps is not needed
+		"gop" // string, for example: 2s
+		"profile" // one of - H264Baseline - H264Main - H264High - H264ConstrainedHigh
 	}
 ```
