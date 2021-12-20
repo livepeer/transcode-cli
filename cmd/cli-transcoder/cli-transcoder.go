@@ -195,6 +195,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	}
 	var outFiles []av.MuxCloser
 	var dstNames []string
+	var bandwidths []int
 	if len(presets) == 0 {
 		for i, prof := range profiles {
 			name := prof.Name
@@ -207,6 +208,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	for i := range presets {
 		if playList != nil {
 			mediaSegments = append(mediaSegments, nil)
+			bandwidths = append(bandwidths, 0)
 		} else {
 			dstName := makeDstName(dst, i, len(presets))
 			dstNames = append(dstNames, dstName)
@@ -238,6 +240,10 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 
 		for i, segData := range transcoded {
 			if playList != nil {
+				if bandwidths[i] == 0 {
+					bw := len(segData) * 8 / int(seg.Duration.Seconds())
+					bandwidths[i] = bw - bw%1000
+				}
 				segFileName := fmt.Sprintf("%s_%s_%d.ts", getBase(dst), presets[i], seg.SeqNo)
 				mseg := new(m3u8.MediaSegment)
 				mseg.SeqId = uint64(seg.SeqNo)
@@ -275,7 +281,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 			if len(profiles) > 0 {
 				resolution = fmt.Sprintf("%dx%d", profiles[i].Width, profiles[i].Height)
 			}
-			playList.Append(pn+".m3u8", nil, m3u8.VariantParams{Name: pn, Resolution: resolution})
+			playList.Append(pn+".m3u8", nil, m3u8.VariantParams{Name: pn, Resolution: resolution, Bandwidth: uint32(bandwidths[i])})
 			mpl, err := m3u8.NewMediaPlaylist(0, uint(len(mediaSegments[i])))
 			if err != nil {
 				panic(err)
