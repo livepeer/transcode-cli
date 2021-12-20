@@ -49,4 +49,5 @@ Switches:
 
 ## FAQ
 Q: I'm Mac user, and I'm getting an error saying `cli-transcoder cannot be opened because the developer cannot be verified.`.  What do I do?
+
 A: Go to "Security and Privacy" under "System Preferences", you should see a prompt saying something about `cli-transcoder`.  Click "Allow Anyways".
