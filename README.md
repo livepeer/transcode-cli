@@ -17,7 +17,7 @@ you better address your needs.
 You’re also welcome to communicate with our team in the [Livepeer
 Discord server][discord] #video-dev channel.
 
-## Installing `cli-transcoder`
+## Installing `lp-transcoder`
 
 What you'll need:
 
@@ -33,7 +33,7 @@ What you'll need:
      warning, follow [this guide][3] to circumvent it while we work on
      removing this warning.
 
-## Using `cli-transcoder`
+## Using `lp-transcoder`
 
 Tool accepts `.mp4` and `.ts` file. Output be `.mp4`, `.ts` or `.m3u8`
 (HLS manifest).
@@ -69,8 +69,8 @@ You can also use `lp-transcoder [subcommand] --help` for more information about 
 
 The global flags should be specified before the subcommand and are the same for all:
 
-- `-h` / `--help` — display help for cli-transcoder
-- `-v` / `--version` — display version of cli-transcoder
+- `-h` / `--help` — display help for lp-transcoder
+- `-v` / `--version` — display version of lp-transcoder
 - `-a` / `--api-host` — API-host string Livepeer API host (default "[livepeer.com](http://livepeer.com/)")
 - `-k` / `--api-key` — API-key string for Livepeer API key
 
@@ -98,19 +98,19 @@ resolution of the input video to avoid stretching of the frames.
 - `-o` / `--profile` — determines hardware acceleration for encoding. Options are `baseline`, `main`, or `high`.
 - `--profiles` - file name with desired encoding profiles in JSON format. Example [config.json](config.json)
 
-## profile structure:
+## Profile structure
 
 ```jsonc
-	{
-		"name",
-		"width", // number
-		"height", // number
-		"bitrate", // number, in bits per second
-		"fps", // number
-		"fpsDen" // number, fps denominator, do not set if fractional fps is not needed
-		"gop" // string, for example: 2s
-		"profile" // one of - H264Baseline - H264Main - H264High - H264ConstrainedHigh
-	}
+{
+    "name",
+    "width", // number
+    "height", // number
+    "bitrate", // number, in bits per second
+    "fps", // number
+    "fpsDen" // number, fps denominator, do not set if fractional fps is not needed
+    "gop" // string, for example: 2s
+    "profile" // one of - H264Baseline - H264Main - H264High - H264ConstrainedHigh
+}
 ```
 
 
