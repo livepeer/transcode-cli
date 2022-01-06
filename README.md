@@ -1,6 +1,6 @@
 # Transcoding on Demand
 
-[Latest release](https://github.com/livepeer/cli-transcoder/releases/latest)
+[Latest release][latest]
 
 Our Transcoding on Demand tool is a Command-Line Interface (CLI) that
 allows an application to leverage the Livepeer network for video
@@ -25,13 +25,14 @@ What you'll need:
 - A way to unzip packaged files
 - MP4 or TS video that you'd like transcoded into other renditions
 
-### Steps to install:
+### Steps to install
 
-1. [Download the binary][2] for your OS (Windows, Linux, Mac) and arch.
-2. Execute the file
-  - If you're on a Mac and get an “unidentified developer” security
-     warning, follow [this guide][3] to circumvent it while we work on
-     removing this warning.
+- [Download the binary][latest] for your OS (Windows, Linux, Mac) and
+   arch.
+- Execute the file
+    - **NOTE**: If you're on a Mac and get an "*unidentified
+     developer*" security warning, follow [this guide][2] to
+     circumvent it while we work on removing this warning.
 
 ## Using `lp-transcoder`
 
@@ -41,21 +42,22 @@ Tool accepts `.mp4` and `.ts` file. Output be `.mp4`, `.ts` or `.m3u8`
 For HLS output tool will write master playlist and one media playlist
 for each transcoding profile.
 
-### Examples
+## Examples
 
 MP4 Output:
-
-    ./lp-transcoder --api-key {API key} transcode name_of_input_video.mp4 name_of_output_video.mp4 -r 256x144 -b 400 --framerate 47 --profile baseline --gop 20s
-
+```shell
+./lp-transcoder --api-key {API key} transcode name_of_input_video.mp4 name_of_output_video.mp4 -r 256x144 -b 400 --framerate 47 --profile baseline --gop 20s
+```
 or
-
-    ./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_file_name.mp4 --profiles config.json
-
+```shell
+./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_file_name.mp4 --profiles config.json
+```
 HLS output:
+```shell
+./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_dir/output_file_name.m3u8 --profiles config.json output_dir
+```
 
-    ./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_dir/output_file_name.m3u8 --profiles config.json output_dir
-
-### Subcommands
+## Subcommands
 
 The subcommands are structured like this: `lp-transcoder [subcommand]`
 
@@ -63,7 +65,8 @@ The subcommands are structured like this: `lp-transcoder [subcommand]`
 - `list-presets` — Lists available transcoding presets
 - `transcode` — Transcodes video file using Livepeer API
 
-You can also use `lp-transcoder [subcommand] --help` for more information about a specific subcommand.
+You can also use `lp-transcoder [subcommand] --help` for more
+information about a specific subcommand.
 
 ### Global Flags
 
@@ -77,8 +80,9 @@ The global flags should be specified before the subcommand and are the same for 
 ### The `transcode` subcommand
 
 The `transcode` subcommand is used like this:
-
-    lp-transcoder transcode input.[ts|mp4] output.[ts|mp4] [flags]
+```shell
+lp-transcoder transcode input.[ts|mp4] output.[ts|mp4] [flags]
+```
 
 The first argument after `transcode` is the path to the input file to
 be transcoded, and the second one is the path for the output file
@@ -92,11 +96,21 @@ specify flags to configure the transcoding job:
 NOTE: Resolution will automatically adjust to be proportional to the
 resolution of the input video to avoid stretching of the frames.
 
-- `-f` / `--framerate` — set framerate of the output in frames per second (`fps`)
-- `-g` / `--gop` — set GOP size of the output, specified as the time between two keyframes, in seconds.
-- `-p` / `--presets` — comma-separated list of transcoding presets (e.g. `P720p30fps16x9`). Use `list-presets` to get a list of presets available to use.
-- `-o` / `--profile` — determines hardware acceleration for encoding. Options are `baseline`, `main`, or `high`.
-- `--profiles` - file name with desired encoding profiles in JSON format. Example [config.json](config.json)
+- `-f` / `--framerate` — set framerate of the output in frames per
+  second (`fps`)
+
+- `-g` / `--gop` — set GOP size of the output, specified as the time
+  between two keyframes, in seconds.
+
+- `-p` / `--presets` — comma-separated list of transcoding presets
+  (e.g. `P720p30fps16x9`). Use `list-presets` to get a list of presets
+  available to use.
+
+- `-o` / `--profile` — determines hardware acceleration for
+  encoding. Options are `baseline`, `main`, or `high`.
+
+- `--profiles` - file name with desired encoding profiles in JSON
+  format. Example [config.json](config.json)
 
 ## Profile structure
 
@@ -115,6 +129,6 @@ resolution of the input video to avoid stretching of the frames.
 
 
   [1]: https://livepeer.com/docs/guides/start-live-streaming/api-key
-  [2]: https://github.com/livepeer/cli-transcoder/releases/tag/latest
-  [3]: https://support.apple.com/en-gb/guide/mac-help/mh40616/mac
+  [2]: https://support.apple.com/en-gb/guide/mac-help/mh40616/mac
+  [latest]: https://github.com/livepeer/cli-transcoder/releases/latest
   [discord]: https://discord.gg/uaPhtyrWsF
