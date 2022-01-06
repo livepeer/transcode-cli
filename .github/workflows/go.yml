@@ -81,6 +81,7 @@ jobs:
         GOOS=darwin GOARCH=amd64 make cli-transcoder
         tar -czvf lp-transcoder.macos.amd64.tar.gz lp-transcoder
         GOOS=windows GOARCH=amd64 make cli-transcoder
+        mv lp-transcoder lp-transcoder.exe
         tar -czvf lp-transcoder.windows.amd64.tar.gz lp-transcoder.exe
 
     - name: Release Posix
