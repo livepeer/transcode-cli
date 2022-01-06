@@ -8,4 +8,4 @@ ldflags := -X 'github.com/livepeer/stream-tester/model.Version=$(shell git descr
 
 .PHONY: cli-transcoder
 cli-transcoder:
-	go build -ldflags="$(ldflags)" cmd/cli-transcoder/cli-transcoder.go
+	go build -ldflags="$(ldflags)" -o lp-transcoder cmd/cli-transcoder/cli-transcoder.go
