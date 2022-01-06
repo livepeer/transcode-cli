@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	appName = "cli-transcoder"
+	appName = "lp-transcoder"
 	segLen  = 18 * time.Second
 )
 
