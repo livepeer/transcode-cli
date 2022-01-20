@@ -43,8 +43,8 @@ func init() {
 var errResolution = errors.New("InvalidResolution")
 var errH264Profile = errors.New("InvalidH264Profile")
 
-var allowedInputExt = []string{".ts", ".mp4"}
-var allowedOutputExt = []string{".ts", ".mp4", ".m3u8"}
+var allowedInputExt = []string{".ts", ".mp4", ".flv"}
+var allowedOutputExt = []string{".ts", ".mp4", ".flv", ".m3u8"}
 var allowedH264Profiles = map[string]string{"baseline": "H264Baseline", "main": "H264Main", "high": "H264High"}
 
 /*
@@ -268,7 +268,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 					}
 				}
 				if err = avutil.CopyPackets(outFiles[i], demuxer); err != io.EOF {
-					fmt.Printf("Copy packets err=%v\n", err)
+					fmt.Printf("Copy packets media %d err=%v\n", i, err)
 					return err
 				}
 			}
@@ -347,7 +347,7 @@ func main() {
 	var gop time.Duration
 
 	var cmdTranscode = &cobra.Command{
-		Use:   "transcode input.[ts|mp4] output.[ts|mp4]",
+		Use:   "transcode input.[ts|mp4|flv] output.[ts|mp4|flv]",
 		Short: "Transcodes video file using Livepeer API",
 		Long:  `Transcodes video file using Livepeer API.`,
 		Args:  cobra.MinimumNArgs(2),
