@@ -17,7 +17,7 @@ you better address your needs.
 You’re also welcome to communicate with our team in the [Livepeer
 Discord server][discord] #video-dev channel.
 
-## Installing `lp-transcoder`
+## Installing `livepeer-transcode`
 
 What you'll need:
 
@@ -34,7 +34,7 @@ What you'll need:
      developer*" security warning, follow [this guide][2] to
      circumvent it while we work on removing this warning.
 
-## Using `lp-transcoder`
+## Using `livepeer-transcode`
 
 Tool accepts `.mp4` and `.ts` file. Output be `.mp4`, `.ts` or `.m3u8`
 (HLS manifest).
@@ -46,34 +46,34 @@ for each transcoding profile.
 
 MP4 Output:
 ```shell
-./lp-transcoder --api-key {API key} transcode name_of_input_video.mp4 name_of_output_video.mp4 -r 256x144 -b 400 --framerate 47 --profile baseline --gop 20s
+./livepeer-transcode --api-key {API key} transcode name_of_input_video.mp4 name_of_output_video.mp4 -r 256x144 -b 400 --framerate 47 --profile baseline --gop 20s
 ```
 or
 ```shell
-./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_file_name.mp4 --profiles config.json
+./livepeer-transcode transcode --api-key API_KEY  input_file_name.mp4 output_file_name.mp4 --profiles config.json
 ```
 HLS output:
 ```shell
-./lp-transcoder transcode --api-key API_KEY  input_file_name.mp4 output_dir/output_file_name.m3u8 --profiles config.json output_dir
+./livepeer-transcode transcode --api-key API_KEY  input_file_name.mp4 output_dir/output_file_name.m3u8 --profiles config.json output_dir
 ```
 
 ## Subcommands
 
-The subcommands are structured like this: `lp-transcoder [subcommand]`
+The subcommands are structured like this: `livepeer-transcode [subcommand]`
 
-- `help` — Global help about the `lp-transcoder`
+- `help` — Global help about the `livepeer-transcode`
 - `list-presets` — Lists available transcoding presets
 - `transcode` — Transcodes video file using Livepeer API
 
-You can also use `lp-transcoder [subcommand] --help` for more
+You can also use `livepeer-transcode [subcommand] --help` for more
 information about a specific subcommand.
 
 ### Global Flags
 
 The global flags should be specified before the subcommand and are the same for all:
 
-- `-h` / `--help` — display help for lp-transcoder
-- `-v` / `--version` — display version of lp-transcoder
+- `-h` / `--help` — display help for livepeer-transcode
+- `-v` / `--version` — display version of livepeer-transcode
 - `-a` / `--api-host` — API-host string Livepeer API host (default "[livepeer.com](http://livepeer.com/)")
 - `-k` / `--api-key` — API-key string for Livepeer API key
 
@@ -81,7 +81,7 @@ The global flags should be specified before the subcommand and are the same for 
 
 The `transcode` subcommand is used like this:
 ```shell
-lp-transcoder transcode input.[ts|mp4] output.[ts|mp4] [flags]
+livepeer-transcode transcode input.[ts|mp4] output.[ts|mp4] [flags]
 ```
 
 The first argument after `transcode` is the path to the input file to
@@ -89,7 +89,7 @@ be transcoded, and the second one is the path for the output file
 where the transcoded renditions will be written. After that one must
 specify flags to configure the transcoding job:
 
-- `-h` / `--help` — display specific help for the `transcoder` subcommand
+- `-h` / `--help` — display specific help for the `transcode` subcommand
 - `-b` / `--bitrate` — set bitrate of the output in `Kbps`
 - `-r` / `--resolution` — set resolution of the output
 
@@ -130,5 +130,5 @@ resolution of the input video to avoid stretching of the frames.
 
   [1]: https://livepeer.com/docs/guides/start-live-streaming/api-key
   [2]: https://support.apple.com/en-gb/guide/mac-help/mh40616/mac
-  [latest]: https://github.com/livepeer/cli-transcoder/releases/latest
+  [latest]: https://github.com/livepeer/transcode-cli/releases/latest
   [discord]: https://discord.gg/uaPhtyrWsF
