@@ -1,0 +1,121 @@
+name: Publish new Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - 'hjp/*'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.17
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.17
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: Cache go modules
+      id: cache-go-mod
+      uses: actions/cache@v2.1.5
+      with:
+        path: ~/go/pkg/mod
+        key: go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          go-
+    - name: Get dependencies
+      run: |
+        go get -v -t -d ./...
+    - name: Check that can be compiled
+      run: go build -v cmd/cli-transcoder/cli-transcoder.go
+
+  # create_release:
+  #   name: Create Release
+  #   runs-on: ubuntu-latest
+  #   needs: test
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@master
+  #     - name: Create Release
+  #       id: create_release
+  #       uses: actions/create-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+  #       with:
+  #         tag_name: ${{ github.ref }}
+  #         release_name: Release ${{ github.ref }}
+  #         body: |
+  #           Release ${{ github.ref }}
+  #         draft: false
+  #         prerelease: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    # needs: create_release
+    steps:
+    - name: Set up Go 1.17
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.17
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: Restore cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Get dependencies
+      run: |
+        go mod download
+    - name: Build
+      run: |
+        BINARY_NAME="livepeer-transcode"
+
+        mkdir -p build/ releases/
+
+        for platform in linux windows darwin
+          do
+            for arch in arm64 amd64
+            do
+              archive_name="${BINARY_NAME}-${platform}-${arch}"
+              GOOS="$platform" GOARCH="$arch" make transcode
+              cd "build/"
+              if [[ "$platform" != "windows" ]]
+              then
+                tar -czf "../releases/${archive_name}.tar.gz" "$BINARY_NAME"
+              else
+                mv "$BINARY_NAME" "${BINARY_NAME}.exe"
+                zip -9 "../releases/${archive_name}.zip" "${BINARY_NAME}.exe"
+              fi
+              cd -
+          done
+        done
+    - name: Generate checksums and gpg signatures
+      run: |
+        cd "releases/"
+        echo "$CI_GPG_SIGNING_KEY" | gpg --import
+        for file in ./*
+        do
+          sha256sum "$file" > "${file}.txt"
+          gpg --passphrase "$CI_GPG_SIGNING_PASSPHRASE" --output "${file}.sig" --detach-sign "$file"
+        done
+      env:
+        CI_GPG_SIGNING_KEY: ${{ secrets.CI_GPG_SIGNING_KEY }}
+        CI_GPG_SIGNING_PASSPHRASE: ${{ secrets.CI_GPG_SIGNING_PASSPHRASE }}
+    # - name: Release Posix
+    #   uses: softprops/action-gh-release@v1
+    #   with:
+    #     files: |
+    #       releases/
+    #   env:
+    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

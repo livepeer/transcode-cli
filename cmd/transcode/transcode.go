@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	appName = "lp-transcoder"
+	appName = "livepeer-transcode"
 	segLen  = 18 * time.Second
 )
 
@@ -162,7 +162,7 @@ func getBase(dst string) string {
 func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []livepeer.Profile) error {
 	lapi := livepeer.NewLivepeer2(apiKey, apiHost, nil, 2*time.Minute)
 	lapi.Init()
-	fmt.Printf("Choosen API server: %s", lapi.GetServer())
+	fmt.Printf("Chosen API server: %s", lapi.GetServer())
 	streamName := fmt.Sprintf("tod_%s", time.Now().Format("2006-01-02T15:04:05Z07:00"))
 	// stream, err := lapi.CreateStreamEx(streamName, true, nil, standardProfiles...)
 	// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
@@ -379,6 +379,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Not a file: %q\n", inp)
 				os.Exit(1)
 			}
+			glog.Infof("api key=%q transcode from %q to %q", apiKey, inp, output)
 			fmt.Printf("api key %q transcode from %q to %q\n", apiKey, inp, output)
 			// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
 			// ffmpeg.P720p30fps16x9
@@ -462,8 +463,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&apiKey, "api-key", "k", "", "Livepeer API key")
 	rootCmd.PersistentFlags().StringVarP(&apiHost, "api-host", "a", "livepeer.com", "Livepeer API host")
 	rootCmd.MarkFlagRequired("api-key")
-	rootCmd.AddCommand(cmdTranscode)
-	rootCmd.AddCommand(cmdListPresets)
+	rootCmd.AddCommand(cmdTranscode, cmdListPresets)
 	rootCmd.Execute()
 }
 
