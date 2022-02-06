@@ -31,7 +31,7 @@ jobs:
       run: |
         go get -v -t -d ./...
     - name: Check that can be compiled
-      run: go build -v cmd/cli-transcoder/cli-transcoder.go
+      run: go build -v cmd/transcode/transcode.go
 
   # create_release:
   #   name: Create Release
@@ -103,12 +103,14 @@ jobs:
     - name: Generate checksums and gpg signatures
       run: |
         cd "releases/"
-        echo "$CI_GPG_SIGNING_KEY" | gpg --import
+        # Need to import as --batch because: https://dev.gnupg.org/T2313
+        echo "$CI_GPG_SIGNING_KEY" | gpg --batch --import
         for file in ./*
         do
           sha256sum "$file" > "${file}.txt"
           gpg --passphrase "$CI_GPG_SIGNING_PASSPHRASE" --output "${file}.sig" --detach-sign "$file"
         done
+        ls -lha releases/
       env:
         CI_GPG_SIGNING_KEY: ${{ secrets.CI_GPG_SIGNING_KEY }}
         CI_GPG_SIGNING_PASSPHRASE: ${{ secrets.CI_GPG_SIGNING_PASSPHRASE }}
