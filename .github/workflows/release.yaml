@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - 'hjp/*'
 
 jobs:
   test:
@@ -34,30 +32,30 @@ jobs:
     - name: Check that can be compiled
       run: go build -v cmd/transcode/transcode.go
 
-  # create_release:
-  #   name: Create Release
-  #   runs-on: ubuntu-latest
-  #   needs: test
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@master
-  #     - name: Create Release
-  #       id: create_release
-  #       uses: actions/create-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-  #       with:
-  #         tag_name: ${{ github.ref }}
-  #         release_name: Release ${{ github.ref }}
-  #         body: |
-  #           Release ${{ github.ref }}
-  #         draft: false
-  #         prerelease: false
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Release ${{ github.ref }}
+          draft: false
+          prerelease: false
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    # needs: create_release
+    needs: create_release
     steps:
     - name: Set up Go 1.17
       uses: actions/setup-go@v1
@@ -111,21 +109,20 @@ jobs:
         do
           sha256sum "$file" > "${file}.txt"
           gpg \
-            -vv --no-tty \
+            --no-tty \
             --passphrase "$CI_GPG_SIGNING_PASSPHRASE" \
             --pinentry-mode loopback \
             --output "${file}.sig" \
             --detach-sign \
             "$file"
         done
-        ls -lha releases/
       env:
         CI_GPG_SIGNING_KEY: ${{ secrets.CI_GPG_SIGNING_KEY }}
         CI_GPG_SIGNING_PASSPHRASE: ${{ secrets.CI_GPG_SIGNING_PASSPHRASE }}
-    # - name: Release Posix
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: |
-    #       releases/
-    #   env:
-    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Release Posix
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          releases/
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
