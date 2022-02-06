@@ -19,14 +19,15 @@ jobs:
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
-    - name: Cache go modules
-      id: cache-go-mod
-      uses: actions/cache@v2.1.5
+    - name: Restore go modules cache
+      uses: actions/cache@v2
       with:
-        path: ~/go/pkg/mod
-        key: go-${{ hashFiles('**/go.sum') }}
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          go-
+          ${{ runner.os }}-go-
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
@@ -65,7 +66,7 @@ jobs:
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
-    - name: Restore cache
+    - name: Restore go modules cache
       uses: actions/cache@v2
       with:
         path: |
@@ -105,10 +106,17 @@ jobs:
         cd "releases/"
         # Need to import as --batch because: https://dev.gnupg.org/T2313
         echo "$CI_GPG_SIGNING_KEY" | gpg --batch --import
+        echo "Signature imported!"
         for file in ./*
         do
           sha256sum "$file" > "${file}.txt"
-          gpg --passphrase "$CI_GPG_SIGNING_PASSPHRASE" --output "${file}.sig" --detach-sign "$file"
+          gpg \
+            -vv --no-tty \
+            --passphrase "$CI_GPG_SIGNING_PASSPHRASE" \
+            --pinentry-mode loopback \
+            --output "${file}.sig" \
+            --detach-sign \
+            "$file"
         done
         ls -lha releases/
       env:
