@@ -162,7 +162,7 @@ func getBase(dst string) string {
 func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []livepeer.Profile) error {
 	lapi := livepeer.NewLivepeer2(apiKey, apiHost, nil, 2*time.Minute)
 	lapi.Init()
-	fmt.Printf("Chosen API server: %s", lapi.GetServer())
+	glog.Infof("Chosen API server: %s", lapi.GetServer())
 	streamName := fmt.Sprintf("tod_%s", time.Now().Format("2006-01-02T15:04:05Z07:00"))
 	// stream, err := lapi.CreateStreamEx(streamName, true, nil, standardProfiles...)
 	// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
@@ -178,7 +178,7 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	defer func(sid string) {
 		lapi.DeleteStream(sid)
 	}(stream.ID)
-	fmt.Printf("Created stream id=%s name=%s\n", stream.ID, stream.Name)
+	glog.Infof("Created stream id=%s name=%s\n", stream.ID, stream.Name)
 	gctx, gcancel := context.WithCancel(context.TODO())
 	defer gcancel()
 	segmentsIn := make(chan *model.HlsSegment)
@@ -229,14 +229,14 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 			err = seg.Err
 			break
 		}
-		fmt.Printf("Got segment seqNo=%d pts=%s dur=%s data len bytes=%d\n", seg.SeqNo, seg.Pts, seg.Duration, len(seg.Data))
+		glog.Infof("Got segment seqNo=%d pts=%s dur=%s data len bytes=%d\n", seg.SeqNo, seg.Pts, seg.Duration, len(seg.Data))
 		started := time.Now()
 		transcoded, err = lapi.PushSegment(stream.ID, seg.SeqNo, seg.Duration, seg.Data)
 		if err != nil {
-			fmt.Printf("Segment push err=%v\n", err)
+			glog.Warningf("Segment push err=%v\n", err)
 			break
 		}
-		fmt.Printf("Transcoded %d took %s\n", len(transcoded), time.Since(started))
+		glog.Infof("Transcoded %d took %s\n", len(transcoded), time.Since(started))
 
 		for i, segData := range transcoded {
 			if playList != nil {
@@ -263,12 +263,12 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 						return err
 					}
 					if err = outFiles[i].WriteHeader(streams); err != nil {
-						fmt.Printf("Write header err=%v\n", err)
+						glog.Warningf("Write header err=%v\n", err)
 						return err
 					}
 				}
 				if err = avutil.CopyPackets(outFiles[i], demuxer); err != io.EOF {
-					fmt.Printf("Copy packets media %d err=%v\n", i, err)
+					glog.Warningf("Copy packets media %d err=%v\n", i, err)
 					return err
 				}
 			}
@@ -314,15 +314,15 @@ func transcode(apiKey, apiHost, src, dst string, presets []string, lprofiles []l
 	}
 	gcancel()
 	if err != nil {
-		fmt.Printf("Error while segmenting err=%v\n", err)
+		glog.Warningf("Error while segmenting err=%v\n", err)
 	}
-	fmt.Printf("Written files:\n")
+	glog.Info("Written files:\n")
 	for _, fn := range writtenFiles {
-		fmt.Printf("    %s\n", fn)
+		glog.Infof("    %s\n", fn)
 	}
 	for i := range outFiles {
 		// dstName := fmt.Sprintf(dstNameTemplate, i)
-		fmt.Printf("    %s\n", dstNames[i])
+		glog.Infof("    %s\n", dstNames[i])
 	}
 	return nil
 }
@@ -356,45 +356,44 @@ func main() {
 			inp := args[0]
 			inpExt := filepath.Ext(inp)
 			if !stringsSliceContains(allowedInputExt, inpExt) {
-				fmt.Fprintf(os.Stderr, "Unsupported extension %q for file %q\n", inpExt, inp)
+				glog.Errorf("Unsupported extension %q for file %q\n", inpExt, inp)
 				os.Exit(1)
 			}
 			output := args[1]
 			outputExt := filepath.Ext(output)
 			if !stringsSliceContains(allowedOutputExt, outputExt) {
-				fmt.Fprintf(os.Stderr, "Unsupported extension %q for file %q\n", outputExt, output)
+				glog.Errorf("Unsupported extension %q for file %q\n", outputExt, output)
 				os.Exit(1)
 			}
 			if apiKey == "" {
-				fmt.Printf("Should provide --api-key flag\n")
+				glog.Error("Should provide --api-key flag\n")
 				os.Exit(1)
 			}
 			if stat, err := os.Stat(inp); errors.Is(err, fs.ErrNotExist) {
-				fmt.Fprintf(os.Stderr, "File %q does not exists\n", inp)
+				glog.Errorf("File %q does not exists\n", inp)
 				os.Exit(1)
 			} else if err != nil {
-				fmt.Fprintf(os.Stderr, "For file: %q err %v\n", inp, err)
+				glog.Errorf("For file: %q err %v\n", inp, err)
 				os.Exit(1)
 			} else if stat.IsDir() {
-				fmt.Fprintf(os.Stderr, "Not a file: %q\n", inp)
+				glog.Errorf("Not a file: %q\n", inp)
 				os.Exit(1)
 			}
 			glog.Infof("api key=%q transcode from %q to %q", apiKey, inp, output)
-			fmt.Printf("api key %q transcode from %q to %q\n", apiKey, inp, output)
 			// presets := []string{"P144p30fps16x9", "P240p30fps4x3"}
 			// ffmpeg.P720p30fps16x9
 			if (profiles != "" || resolution != "") && presets != "" {
-				fmt.Fprintf(os.Stderr, "Should not specify preset if profiles or resolution specified\n")
+				glog.Errorf("Should not specify preset if profiles or resolution specified\n")
 				os.Exit(1)
 			}
 			var presetsAr []string
 			if len(presets) > 0 {
 				presetsAr = strings.Split(presets, ",")
-				fmt.Printf("presets %q ar %+v\n", presets, presetsAr)
+				glog.Infof("presets %q ar %+v\n", presets, presetsAr)
 				if len(presetsAr) > 0 {
 					for _, pr := range presetsAr {
 						if _, ok := mist.ProfileLookup[pr]; !ok {
-							fmt.Printf("Unknown preset name: %q\n", pr)
+							glog.Errorf("Unknown preset name: %q\n", pr)
 							os.Exit(1)
 						}
 					}
@@ -402,30 +401,30 @@ func main() {
 			}
 
 			if len(presets) == 0 && len(resolution) == 0 && len(profiles) == 0 {
-				fmt.Printf("Should specify preset or resolution or profiles file name\n")
+				glog.Errorf("Should specify preset or resolution or profiles file name\n")
 				os.Exit(1)
 			}
 			var transcodeProfiles []livepeer.Profile
 			if profiles != "" {
 				if fc, err := os.ReadFile(profiles); err != nil {
-					fmt.Printf("Error reading file %s error: %v\n", profiles, err)
+					glog.Errorf("Error reading file %s error: %v\n", profiles, err)
 					os.Exit(1)
 				} else {
 					if err := json.Unmarshal(fc, &transcodeProfiles); err != nil {
-						fmt.Printf("Error parsing file %s error: %v\n", profiles, err)
+						glog.Errorf("Error parsing file %s error: %v\n", profiles, err)
 						os.Exit(1)
 					}
 				}
 			} else if resolution != "" {
 				if transcodeProfile, err := parmsToProfile(resolution, profile, frameRate, bitrateK, gop); err != nil {
-					fmt.Printf("Error parsing arguments: %s\n", err)
+					glog.Errorf("Error parsing arguments: %s\n", err)
 					os.Exit(1)
 				} else {
 					transcodeProfiles = append(transcodeProfiles, *transcodeProfile)
 				}
 			}
 			if err := transcode(apiKey, apiHost, inp, output, presetsAr, transcodeProfiles); err != nil {
-				fmt.Fprintf(os.Stderr, "Error while transcoding: %v\n", err)
+				glog.Errorf("Error while transcoding: %v\n", err)
 				os.Exit(2)
 			}
 		},
@@ -443,14 +442,14 @@ func main() {
 		Short: "Lists transcoding presets",
 		Long:  `Lists available transcoding presets`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Available transcoding presets:\n")
+			glog.Info("Available transcoding presets:\n")
 			var ps []string
 			for k := range mist.ProfileLookup {
 				ps = append(ps, k)
 			}
 			sort.Strings(ps)
 			for _, pr := range ps {
-				fmt.Printf("  %s\n", pr)
+				glog.Infof("  %s\n", pr)
 			}
 		},
 	}
