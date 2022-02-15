@@ -10,27 +10,31 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Go 1.17
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.17
-      id: go
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
-    - name: Restore go modules cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-    - name: Check that can be compiled
-      run: go build -v cmd/transcode/transcode.go
+      - name: Set up Go 1.17
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.17
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+
+      - name: Restore go modules cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+
+      - name: Check that can be compiled
+        run: go build -v cmd/transcode/transcode.go
 
   create_release:
     name: Create Release
@@ -39,6 +43,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@master
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -57,72 +62,66 @@ jobs:
     runs-on: ubuntu-latest
     needs: create_release
     steps:
-    - name: Set up Go 1.17
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.17
-      id: go
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
-    - name: Restore go modules cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-    - name: Get dependencies
-      run: |
-        go mod download
-    - name: Build
-      run: |
-        BINARY_NAME="livepeer-transcode"
+      - name: Set up Go 1.17
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.17
+        id: go
 
-        mkdir -p build/ releases/
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
 
-        for platform in linux windows darwin
-          do
-            for arch in arm64 amd64
+      - name: Restore go modules cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Get dependencies
+        run: |
+          go mod download
+
+      - name: Build
+        shell: bash
+        run: |
+          BINARY_NAME="livepeer-transcode"
+
+          mkdir -p build/ releases/
+
+          for platform in linux windows darwin
             do
-              archive_name="${BINARY_NAME}-${platform}-${arch}"
-              GOOS="$platform" GOARCH="$arch" make transcode
-              cd "build/"
-              if [[ "$platform" != "windows" ]]
-              then
-                tar -czf "../releases/${archive_name}.tar.gz" "$BINARY_NAME"
-              else
-                mv "$BINARY_NAME" "${BINARY_NAME}.exe"
-                zip -9 "../releases/${archive_name}.zip" "${BINARY_NAME}.exe"
-              fi
-              cd -
+              for arch in arm64 amd64
+              do
+                archive_name="${BINARY_NAME}-${platform}-${arch}"
+                GOOS="$platform" GOARCH="$arch" make transcode
+                cd "build/"
+                if [[ "$platform" != "windows" ]]
+                then
+                  tar -czf "../releases/${archive_name}.tar.gz" "$BINARY_NAME"
+                else
+                  mv "$BINARY_NAME" "${BINARY_NAME}.exe"
+                  zip -9 "../releases/${archive_name}.zip" "${BINARY_NAME}.exe"
+                fi
+                cd -
+            done
           done
-        done
-    - name: Generate checksums and gpg signatures
-      run: |
-        cd "releases/"
-        # Need to import as --batch because: https://dev.gnupg.org/T2313
-        echo "$CI_GPG_SIGNING_KEY" | gpg --batch --import
-        echo "Signature imported!"
-        for file in ./*
-        do
-          sha256sum "$file" > "${file}.txt"
-          gpg \
-            --no-tty \
-            --passphrase "$CI_GPG_SIGNING_PASSPHRASE" \
-            --pinentry-mode loopback \
-            --output "${file}.sig" \
-            --detach-sign \
-            "$file"
-        done
-      env:
-        CI_GPG_SIGNING_KEY: ${{ secrets.CI_GPG_SIGNING_KEY }}
-        CI_GPG_SIGNING_PASSPHRASE: ${{ secrets.CI_GPG_SIGNING_PASSPHRASE }}
-    - name: Release Posix
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          releases/*
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate sha256 checksum and gpg signatures for release artifacts
+        uses: livepeer/action-gh-checksum-and-gpg-sign@latest
+        with:
+          artifacts-dir: releases
+          release-name: livepeer-transcode
+          gpg-key: ${{ secrets.CI_GPG_SIGNING_KEY }}
+          gpg-key-passphrase: ${{ secrets.CI_GPG_SIGNING_PASSPHRASE }}
+
+      - name: Release Posix
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            releases/*
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
