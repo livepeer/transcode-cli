@@ -1,11 +1,10 @@
 SHELL=/bin/bash
 
-all: cli-transcoder
-
 ldflags := -X 'github.com/livepeer/stream-tester/model.Version=$(shell git describe --dirty)'
 # ldflags := -X 'github.com/livepeer/stream-tester/model.Version=$(shell git describe --dirty)' -X 'github.com/livepeer/stream-tester/model.IProduction=true'
 
+all: transcode
 
-.PHONY: cli-transcoder
-cli-transcoder:
-	go build -ldflags="$(ldflags)" -o lp-transcoder cmd/cli-transcoder/cli-transcoder.go
+.PHONY: transcode
+transcode:
+	go build -ldflags="$(ldflags)" -o build/livepeer-transcode cmd/transcode/*.go
